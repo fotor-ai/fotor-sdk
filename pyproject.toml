@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fotor-sdk"
+version = "0.1.0"
+description = "Lightweight async Python SDK for the Fotor OpenAPI"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+keywords = ["fotor", "ai", "image-generation", "video-generation", "async"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Multimedia :: Video",
+    "Framework :: AsyncIO",
+]
+dependencies = ["aiohttp>=3.9", "python-dotenv>=1.0"]
+
+[project.urls]
+Homepage = "https://github.com/nickolasburr/fotor-sdk"
+Documentation = "https://github.com/nickolasburr/fotor-sdk#readme"
+Issues = "https://github.com/nickolasburr/fotor-sdk/issues"
