@@ -110,9 +110,11 @@ FotorClient(
 **Methods:**
 - `await create_task(path, payload) -> task_id`
 - `await get_task_status(task_id) -> TaskResult`
+- `await get_credits() -> dict`
 - `await wait_for_task(task_id) -> TaskResult`
 - `await submit_and_wait(path, payload) -> TaskResult`
 - `submit_and_wait_sync(path, payload) -> TaskResult`
+- `get_credits_sync() -> dict`
 
 ### TaskRunner
 

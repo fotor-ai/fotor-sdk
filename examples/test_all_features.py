@@ -67,6 +67,13 @@ results_summary: list[tuple[str, str, str]] = []
 cli_overrides: dict[str, Any] = {}
 
 
+def format_result_detail(result: TaskResult) -> str:
+    base = result.result_url or result.error or ""
+    if result.creditsIncrement is None:
+        return base
+    return f"{base}  creditsIncrement={result.creditsIncrement}"
+
+
 def record(name: str, passed: bool, detail: str = "") -> None:
     status = PASS if passed else FAIL
     results_summary.append((name, status, detail))
@@ -98,7 +105,7 @@ async def test_text2image(client: FotorClient) -> None:
             aspect_ratio=image_aspect_ratio,
             on_poll=poll_logger,
         )
-        record(name, result.success, result.result_url or result.error or "")
+        record(name, result.success, format_result_detail(result))
     except Exception as exc:
         record(name, False, str(exc))
 
@@ -118,7 +125,7 @@ async def test_image2image(client: FotorClient) -> None:
             aspect_ratio=image_aspect_ratio,
             on_poll=poll_logger,
         )
-        record(name, result.success, result.result_url or result.error or "")
+        record(name, result.success, format_result_detail(result))
     except Exception as exc:
         record(name, False, str(exc))
 
@@ -132,7 +139,7 @@ async def test_image_upscale(client: FotorClient) -> None:
             upscale_ratio=2.0,
             on_poll=poll_logger,
         )
-        record(name, result.success, result.result_url or result.error or "")
+        record(name, result.success, format_result_detail(result))
     except Exception as exc:
         record(name, False, str(exc))
 
@@ -145,7 +152,7 @@ async def test_background_remove(client: FotorClient) -> None:
             image_url=SAMPLE_IMAGE,
             on_poll=poll_logger,
         )
-        record(name, result.success, result.result_url or result.error or "")
+        record(name, result.success, format_result_detail(result))
     except Exception as exc:
         record(name, False, str(exc))
 
@@ -168,7 +175,7 @@ async def test_text2video(client: FotorClient) -> None:
             aspect_ratio="16:9",
             on_poll=poll_logger,
         )
-        record(name, result.success, result.result_url or result.error or "")
+        record(name, result.success, format_result_detail(result))
     except Exception as exc:
         record(name, False, str(exc))
 
@@ -187,7 +194,7 @@ async def test_single_image2video(client: FotorClient) -> None:
             resolution="720p",
             on_poll=poll_logger,
         )
-        record(name, result.success, result.result_url or result.error or "")
+        record(name, result.success, format_result_detail(result))
     except Exception as exc:
         record(name, False, str(exc))
 
@@ -207,7 +214,7 @@ async def test_start_end_frame2video(client: FotorClient) -> None:
             resolution="720p",
             on_poll=poll_logger,
         )
-        record(name, result.success, result.result_url or result.error or "")
+        record(name, result.success, format_result_detail(result))
     except Exception as exc:
         record(name, False, str(exc))
 
@@ -226,7 +233,7 @@ async def test_multiple_image2video(client: FotorClient) -> None:
             resolution="720p",
             on_poll=poll_logger,
         )
-        record(name, result.success, result.result_url or result.error or "")
+        record(name, result.success, format_result_detail(result))
     except Exception as exc:
         record(name, False, str(exc))
 

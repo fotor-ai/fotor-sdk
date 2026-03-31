@@ -20,6 +20,7 @@ class TaskResult:
     status: TaskStatus = TaskStatus.UNKNOWN
     result_url: str | None = None
     error: str | None = None
+    creditsIncrement: int | None = None
     elapsed_seconds: float = 0.0
     metadata: dict[str, Any] = field(default_factory=dict)
 
