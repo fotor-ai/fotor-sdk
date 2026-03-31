@@ -23,7 +23,7 @@ import sys
 import time
 from typing import Any
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=True)
 from fotor_sdk import (
     FotorClient,
     FotorAPIError,
@@ -67,6 +67,13 @@ results_summary: list[tuple[str, str, str]] = []
 cli_overrides: dict[str, Any] = {}
 
 
+def format_result_detail(result: TaskResult) -> str:
+    base = result.result_url or result.error or ""
+    if result.creditsIncrement is None:
+        return base
+    return f"{base}  creditsIncrement={result.creditsIncrement}"
+
+
 def record(name: str, passed: bool, detail: str = "") -> None:
     status = PASS if passed else FAIL
     results_summary.append((name, status, detail))
@@ -87,16 +94,18 @@ def poll_logger(r: TaskResult) -> None:
 async def test_text2image(client: FotorClient) -> None:
     name = "text2image"
     model = cli_overrides.get("model_id", "seedream-4-5-251128")
+    image_resolution = cli_overrides.get("resolution", "1k")
+    image_aspect_ratio = cli_overrides.get("aspect_ratio", "1:1")
     try:
         result = await text2image(
             client,
             prompt="A watercolor painting of a mountain lake at sunrise",
             model_id=model,
-            resolution="1k",
-            aspect_ratio="1:1",
+            resolution=image_resolution,
+            aspect_ratio=image_aspect_ratio,
             on_poll=poll_logger,
         )
-        record(name, result.success, result.result_url or result.error or "")
+        record(name, result.success, format_result_detail(result))
     except Exception as exc:
         record(name, False, str(exc))
 
@@ -104,17 +113,19 @@ async def test_text2image(client: FotorClient) -> None:
 async def test_image2image(client: FotorClient) -> None:
     name = "image2image"
     model = cli_overrides.get("model_id", "seedream-4-5-251128")
+    image_resolution = cli_overrides.get("resolution", "1k")
+    image_aspect_ratio = cli_overrides.get("aspect_ratio", "1:1")
     try:
         result = await image2image(
             client,
             prompt="Transform into an oil painting style, warm tones",
             model_id=model,
             image_urls=[SAMPLE_IMAGE],
-            resolution="1k",
-            aspect_ratio="1:1",
+            resolution=image_resolution,
+            aspect_ratio=image_aspect_ratio,
             on_poll=poll_logger,
         )
-        record(name, result.success, result.result_url or result.error or "")
+        record(name, result.success, format_result_detail(result))
     except Exception as exc:
         record(name, False, str(exc))
 
@@ -128,7 +139,7 @@ async def test_image_upscale(client: FotorClient) -> None:
             upscale_ratio=2.0,
             on_poll=poll_logger,
         )
-        record(name, result.success, result.result_url or result.error or "")
+        record(name, result.success, format_result_detail(result))
     except Exception as exc:
         record(name, False, str(exc))
 
@@ -141,7 +152,7 @@ async def test_background_remove(client: FotorClient) -> None:
             image_url=SAMPLE_IMAGE,
             on_poll=poll_logger,
         )
-        record(name, result.success, result.result_url or result.error or "")
+        record(name, result.success, format_result_detail(result))
     except Exception as exc:
         record(name, False, str(exc))
 
@@ -164,7 +175,7 @@ async def test_text2video(client: FotorClient) -> None:
             aspect_ratio="16:9",
             on_poll=poll_logger,
         )
-        record(name, result.success, result.result_url or result.error or "")
+        record(name, result.success, format_result_detail(result))
     except Exception as exc:
         record(name, False, str(exc))
 
@@ -183,7 +194,7 @@ async def test_single_image2video(client: FotorClient) -> None:
             resolution="720p",
             on_poll=poll_logger,
         )
-        record(name, result.success, result.result_url or result.error or "")
+        record(name, result.success, format_result_detail(result))
     except Exception as exc:
         record(name, False, str(exc))
 
@@ -203,7 +214,7 @@ async def test_start_end_frame2video(client: FotorClient) -> None:
             resolution="720p",
             on_poll=poll_logger,
         )
-        record(name, result.success, result.result_url or result.error or "")
+        record(name, result.success, format_result_detail(result))
     except Exception as exc:
         record(name, False, str(exc))
 
@@ -222,7 +233,7 @@ async def test_multiple_image2video(client: FotorClient) -> None:
             resolution="720p",
             on_poll=poll_logger,
         )
-        record(name, result.success, result.result_url or result.error or "")
+        record(name, result.success, format_result_detail(result))
     except Exception as exc:
         record(name, False, str(exc))
 
@@ -492,6 +503,16 @@ def main() -> None:
         metavar="SEC",
         help="override video duration in seconds (e.g. 5, 10)",
     )
+    parser.add_argument(
+        "--resolution", "-r",
+        metavar="RES",
+        help="override image resolution for image tests (e.g. 1k, 2k, 4k)",
+    )
+    parser.add_argument(
+        "--aspect-ratio", "-a",
+        metavar="RATIO",
+        help="override image aspect ratio for image tests (e.g. 1:1, 2:3, 16:9)",
+    )
     args = parser.parse_args()
 
     if args.list:
@@ -502,6 +523,10 @@ def main() -> None:
         cli_overrides["model_id"] = args.model_id
     if args.duration is not None:
         cli_overrides["duration"] = args.duration
+    if args.resolution:
+        cli_overrides["resolution"] = args.resolution
+    if args.aspect_ratio:
+        cli_overrides["aspect_ratio"] = args.aspect_ratio
 
     if cli_overrides:
         log.info("CLI overrides: %s", cli_overrides)
