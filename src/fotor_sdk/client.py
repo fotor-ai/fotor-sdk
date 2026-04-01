@@ -15,7 +15,7 @@ _OK_CODE = "000"
 _TASK_STATUS_PATH = "/v1/aiart/tasks"
 _CREDITS_PATH = "/v1/credits"
 
-_DEFAULT_ENDPOINT = " https://api-b.fotor.com "
+_DEFAULT_ENDPOINT = "https://api-b.fotor.com"
 _DEFAULT_POLL_INTERVAL = 2.0
 _DEFAULT_MAX_POLL_SECONDS = 1200
 

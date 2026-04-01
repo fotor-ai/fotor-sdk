@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fotor-sdk"
-version = "0.1.5"
+version = "0.1.6"
 description = "Lightweight async Python SDK for the Fotor OpenAPI"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -26,6 +26,6 @@ classifiers = [
 dependencies = ["aiohttp>=3.9", "python-dotenv>=1.0"]
 
 [project.urls]
-Homepage = "https://github.com/zeng121/fotor-sdk"
-Documentation = "https://github.com/zeng121/fotor-sdk#readme"
-Issues = "https://github.com/zeng121/fotor-sdk/issues"
+Homepage = "https://github.com/fotor-ai/fotor-sdk"
+Documentation = "https://github.com/fotor-ai/fotor-sdk#readme"
+Issues = "https://github.com/fotor-ai/fotor-sdk/issues"

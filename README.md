@@ -13,13 +13,13 @@ pip install fotor-sdk
 Or install from GitHub:
 
 ```bash
-pip install git+https://github.com/zeng121/fotor-sdk.git
+pip install git+https://github.com/fotor-ai/fotor-sdk.git
 ```
 
 For local development:
 
 ```bash
-git clone https://github.com/zeng121/fotor-sdk.git
+git clone https://github.com/fotor-ai/fotor-sdk.git
 cd fotor-sdk
 pip install -e .
 ```
