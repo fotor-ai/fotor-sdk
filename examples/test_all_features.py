@@ -447,11 +447,16 @@ async def async_main(test_names: list[str]) -> None:
 
     start = time.monotonic()
 
-    for tn in test_names:
+    async def run_one_test(tn: str) -> None:
         fn = TEST_REGISTRY.get(tn)
-        if fn:
-            log.info("--- %s ---", tn)
-            await fn(client)
+        if not fn:
+            return
+        log.info("--- %s ---", tn)
+        await fn(client)
+
+    # Run selected tests concurrently. For `--only image`, this means all image
+    # generation tests start together instead of waiting one-by-one.
+    await asyncio.gather(*(run_one_test(tn) for tn in test_names))
 
     elapsed = time.monotonic() - start
     print()
