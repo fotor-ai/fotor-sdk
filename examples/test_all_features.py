@@ -357,7 +357,7 @@ async def test_error_handling(client: FotorClient) -> None:
 # Sync wrappers
 # -----------------------------------------------------------------------
 
-async def test_sync_wrapper(client: FotorClient) -> None:
+def test_sync_wrapper(client: FotorClient) -> None:
     name = "sync_wrapper"
     try:
         result = client.submit_and_wait_sync(
@@ -452,7 +452,10 @@ async def async_main(test_names: list[str]) -> None:
         if not fn:
             return
         log.info("--- %s ---", tn)
-        await fn(client)
+        if asyncio.iscoroutinefunction(fn):
+            await fn(client)
+        else:
+            fn(client)
 
     # Run selected tests concurrently. For `--only image`, this means all image
     # generation tests start together instead of waiting one-by-one.

@@ -20,6 +20,15 @@ _DEFAULT_POLL_INTERVAL = 2.0
 _DEFAULT_MAX_POLL_SECONDS = 1200
 
 
+def _is_retryable_poll_error(exc: Exception) -> bool:
+    if isinstance(exc, (aiohttp.ClientError, asyncio.TimeoutError)):
+        return True
+    if isinstance(exc, FotorAPIError):
+        code = (exc.code or "").strip()
+        return code == "429" or code.startswith("5")
+    return False
+
+
 class FotorAPIError(Exception):
     """Raised when the Fotor API returns an error response."""
 
@@ -99,13 +108,14 @@ class FotorClient:
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
                 if resp.status != 200:
-                    return TaskResult(task_id=task_id, status=TaskStatus.FAILED,
-                                     error=f"HTTP {resp.status}")
+                    body = await resp.text()
+                    raise FotorAPIError(
+                        f"HTTP {resp.status} from {url}: {body}", code=str(resp.status)
+                    )
                 data = await resp.json()
 
         if data.get("code") != _OK_CODE:
-            return TaskResult(task_id=task_id, status=TaskStatus.FAILED,
-                              error=data.get("msg", "bad code"))
+            raise FotorAPIError(data.get("msg", "bad code"), code=data.get("code"))
 
         task_data = data.get("data", {})
         api_status = task_data.get("status", -1)
@@ -173,7 +183,13 @@ class FotorClient:
         while True:
             try:
                 result = await self.get_task_status(task_id)
-            except Exception:
+            except Exception as exc:
+                if not _is_retryable_poll_error(exc):
+                    return TaskResult(
+                        task_id=task_id,
+                        status=TaskStatus.FAILED,
+                        error=str(exc),
+                    )
                 await asyncio.sleep(self._poll_interval)
                 if (time.monotonic() - start) >= self._max_poll_seconds:
                     return TaskResult(task_id=task_id, status=TaskStatus.TIMEOUT,

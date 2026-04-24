@@ -1,6 +1,8 @@
 .env
-tests/
+.codex
 __pycache__/
+tests/__pycache__/
+tests/demo.py
 *.py[cod]
 *.pyo
 

@@ -11,6 +11,29 @@ from fotor_sdk.tasks import _resolve_image_size
 
 
 class TestImageSizeRules(unittest.TestCase):
+    def test_unknown_model_uses_conservative_fallback_sizes(self) -> None:
+        w, h = _resolve_image_size(
+            model_id="unknown-model",
+            aspect_ratio="1:1",
+            resolution="1k",
+        )
+        self.assertEqual((w, h), (1024, 1024))
+
+        w, h = _resolve_image_size(
+            model_id="unknown-model",
+            aspect_ratio="16:9",
+            resolution="1k",
+        )
+        self.assertEqual((w, h), (1392, 752))
+
+    def test_unknown_model_nonstandard_ratio_uses_1k_pixel_budget(self) -> None:
+        w, h = _resolve_image_size(
+            model_id="unknown-model",
+            aspect_ratio="7:5",
+            resolution="1k",
+        )
+        self.assertEqual((w, h), (1213, 866))
+
     def test_seedream_clamped(self) -> None:
         # seedream has no preferred_size mapping; we should clamp by max_long_side.
         w, h = _resolve_image_size(
@@ -37,6 +60,21 @@ class TestImageSizeRules(unittest.TestCase):
         )
         self.assertEqual((w, h), (1024, 1024))
 
+    def test_gpt_image_2_preferred_sizes(self) -> None:
+        w, h = _resolve_image_size(
+            model_id="gpt-image-2",
+            aspect_ratio="1:1",
+            resolution="1k",
+        )
+        self.assertEqual((w, h), (1024, 1024))
+
+        w, h = _resolve_image_size(
+            model_id="gpt-image-2",
+            aspect_ratio="21:9",
+            resolution="1k",
+        )
+        self.assertEqual((w, h), (1568, 672))
+
     def test_seedream_resolution_4k_clamped_long_side(self) -> None:
         w, h = _resolve_image_size(
             model_id="seedream-4-5-251128",
@@ -49,4 +87,3 @@ class TestImageSizeRules(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
