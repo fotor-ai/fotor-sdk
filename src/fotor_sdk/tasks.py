@@ -27,17 +27,17 @@ _CHARACTER2VIDEO = "/v1/aiart/character2video"
 # Default image sizes per aspect ratio.
 # The API requires at least 3,686,400 total pixels (1920×1920 for 1:1).
 _DEFAULT_SIZES: dict[str, tuple[int, int]] = {
-    "1:1": (1920, 1920),
-    "16:9": (2560, 1440),
-    "9:16": (1440, 2560),
-    "4:3": (2240, 1680),
-    "3:4": (1680, 2240),
-    "3:2": (2400, 1600),
-    "2:3": (1600, 2400),
-    "21:9": (2940, 1260),
+    "1:1": (1024, 1024),
+    "16:9": (1392, 752),
+    "9:16": (752, 1392),
+    "4:3": (1184, 880),
+    "3:4": (880, 1184),
+    "3:2": (1536, 1024),
+    "2:3": (1024, 1536),
+    "21:9": (1568, 672),
 }
 
-_API_MIN_PIXELS = 1920 * 1920
+_API_MIN_PIXELS = 1024 * 1024
 
 
 def _resolution_multiplier(resolution: str) -> int:
@@ -158,7 +158,11 @@ def _resolve_image_size(
     if preferred_size:
         base = preferred_size.get(chosen_ratio) or preferred_size.get("1:1") or (1024, 1024)
         bw, bh = int(base[0]), int(base[1])
-        return bw * mult, bh * mult
+        w, h = bw * mult, bh * mult
+        max_long_side = rule.get("max_long_side")
+        if max_long_side:
+            w, h = _clamp_long_side(w, h, int(max_long_side))
+        return w, h
 
     # No preferred_size mapping (e.g. seedream): compute from ratio and clamp.
     w, h = _resolve_size(chosen_ratio, chosen_resolution)
