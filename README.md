@@ -24,6 +24,30 @@ cd fotor-sdk
 pip install -e .
 ```
 
+## CLI
+
+After installation, the `fotor` command is available. Set your API key first:
+
+```bash
+export FOTOR_OPENAPI_KEY="your-api-key"
+```
+
+Generate images and videos:
+
+```bash
+fotor credits
+fotor text2image --prompt "A diamond kitten on velvet, studio lighting"
+fotor image2image --image ./input.png --prompt "Turn this into an e-commerce product photo"
+fotor bg-remove --image ./product.jpg
+fotor upscale --image ./product.jpg --ratio 2
+fotor text2video --prompt "A cinematic sunset over the ocean"
+fotor image2video --image ./cover.png --prompt "Slow camera push-in"
+```
+
+Image inputs may be local files or `http://` / `https://` URLs. Local files are
+uploaded through Fotor's signed upload flow before the task runs. CLI output is
+JSON containing task status and `result_url`.
+
 ## Quick Start
 
 ### Single Task
