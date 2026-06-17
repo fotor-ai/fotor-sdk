@@ -84,6 +84,15 @@ class TestImageSizeRules(unittest.TestCase):
         self.assertLessEqual(max(w, h), 2048)
         self.assertEqual((w, h), (2048, 1152))
 
+    def test_resolution_above_model_support_downgrades_to_highest_supported(self) -> None:
+        w, h = _resolve_image_size(
+            model_id="gpt-image-2",
+            aspect_ratio="1:1",
+            resolution="4k",
+        )
+
+        self.assertEqual((w, h), (2048, 2048))
+
 
 if __name__ == "__main__":
     unittest.main()
