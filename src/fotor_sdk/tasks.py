@@ -54,6 +54,46 @@ def _resolution_multiplier(resolution: str) -> int:
     return 1
 
 
+def _resolution_rank(resolution: str) -> int | None:
+    r = resolution.lower().strip()
+    if not r.endswith("k"):
+        return None
+    try:
+        value = int(r[:-1])
+    except ValueError:
+        return None
+    if value <= 0:
+        return None
+    return value
+
+
+def _choose_supported_resolution(
+    resolution: str,
+    supported: list[str],
+    default: str,
+) -> str:
+    requested = resolution.lower().strip()
+    supported_values = [(item.lower().strip(), _resolution_rank(item)) for item in supported]
+    supported_names = {name for name, _ in supported_values}
+    if requested in supported_names:
+        return requested
+
+    requested_rank = _resolution_rank(requested)
+    if requested_rank is not None:
+        lower_or_equal = [
+            (rank, name)
+            for name, rank in supported_values
+            if rank is not None and rank <= requested_rank
+        ]
+        if lower_or_equal:
+            return max(lower_or_equal)[1]
+
+    fallback = default.lower().strip()
+    if fallback and fallback in supported_names:
+        return fallback
+    return supported_values[0][0]
+
+
 def _parse_aspect_ratio(aspect_ratio: str) -> tuple[int, int] | None:
     # "W:H" where W is width ratio numerator and H is height ratio denominator.
     parts = aspect_ratio.split(":")
@@ -143,15 +183,11 @@ def _resolve_image_size(
     chosen_resolution = chosen_resolution.lower().strip()
 
     if res_supports:
-        allowed = {s.lower() for s in res_supports}
-        if chosen_resolution not in allowed:
-            # SDK default is "1k", but not every model supports it (e.g. seedream).
-            # In that case, fall back to the model's default (or the first supported).
-            fallback = (rule.get("resolution_default") or "").lower().strip()
-            if fallback and fallback in allowed:
-                chosen_resolution = fallback
-            else:
-                chosen_resolution = next(iter(allowed))
+        chosen_resolution = _choose_supported_resolution(
+            chosen_resolution,
+            res_supports,
+            rule.get("resolution_default") or "",
+        )
 
     mult = _resolution_multiplier(chosen_resolution)
 
