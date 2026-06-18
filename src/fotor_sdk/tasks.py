@@ -143,6 +143,71 @@ def _clamp_long_side(w: int, h: int, max_long_side: int) -> tuple[int, int]:
     return w2, h2
 
 
+def _size_for_min_pixels(
+    w: int,
+    h: int,
+    aspect_ratio: str,
+    min_pixels: int,
+) -> tuple[int, int]:
+    parsed = _parse_aspect_ratio(aspect_ratio)
+    if parsed is None:
+        scale = math.sqrt(min_pixels / (w * h))
+        return max(1, math.ceil(w * scale)), max(1, math.ceil(h * scale))
+
+    a, b = parsed
+    h2 = max(1, math.ceil(math.sqrt(min_pixels * b / a)))
+    w2 = max(1, math.ceil(h2 * a / b))
+    while w2 * h2 < min_pixels:
+        if w2 / h2 < a / b:
+            w2 += 1
+        else:
+            h2 += 1
+    return w2, h2
+
+
+def _size_for_max_pixels(
+    w: int,
+    h: int,
+    aspect_ratio: str,
+    max_pixels: int,
+) -> tuple[int, int]:
+    parsed = _parse_aspect_ratio(aspect_ratio)
+    if parsed is None:
+        scale = math.sqrt(max_pixels / (w * h))
+        return max(1, int(w * scale)), max(1, int(h * scale))
+
+    a, b = parsed
+    h2 = max(1, int(math.sqrt(max_pixels * b / a)))
+    w2 = max(1, int(h2 * a / b))
+    while w2 * h2 > max_pixels:
+        if w2 >= h2:
+            w2 -= 1
+        else:
+            h2 -= 1
+    return w2, h2
+
+
+def _apply_image_limits(
+    w: int,
+    h: int,
+    *,
+    aspect_ratio: str,
+    rule: dict[str, Any],
+) -> tuple[int, int]:
+    min_pixels = rule.get("min_pixels")
+    if min_pixels and w * h < int(min_pixels):
+        w, h = _size_for_min_pixels(w, h, aspect_ratio, int(min_pixels))
+
+    max_pixels = rule.get("max_pixels")
+    if max_pixels and w * h > int(max_pixels):
+        w, h = _size_for_max_pixels(w, h, aspect_ratio, int(max_pixels))
+
+    max_long_side = rule.get("max_long_side")
+    if max_long_side:
+        w, h = _clamp_long_side(w, h, int(max_long_side))
+    return w, h
+
+
 def _resolve_image_size(
     model_id: str,
     aspect_ratio: str,
@@ -155,6 +220,8 @@ def _resolve_image_size(
       multiply by the chosen k-resolution (2k/3k/4k/...).
     - If a model has no `preferred_size` (e.g. seedream), compute from the chosen
       aspect ratio then clamp by `input_image_limits.max_long_side`.
+    - If a model provides `min_pixels`/`max_pixels`, fit the final size into that
+      pixel budget before submitting the task.
     - `aspect_ratio` should be an explicit ratio (e.g. "1:1", "16:9").
     """
     if resolution == "auto":
@@ -195,17 +262,11 @@ def _resolve_image_size(
         base = preferred_size.get(chosen_ratio) or preferred_size.get("1:1") or (1024, 1024)
         bw, bh = int(base[0]), int(base[1])
         w, h = bw * mult, bh * mult
-        max_long_side = rule.get("max_long_side")
-        if max_long_side:
-            w, h = _clamp_long_side(w, h, int(max_long_side))
-        return w, h
+        return _apply_image_limits(w, h, aspect_ratio=chosen_ratio, rule=rule)
 
     # No preferred_size mapping (e.g. seedream): compute from ratio and clamp.
     w, h = _resolve_size(chosen_ratio, chosen_resolution)
-    max_long_side = rule.get("max_long_side")
-    if max_long_side:
-        w, h = _clamp_long_side(w, h, int(max_long_side))
-    return w, h
+    return _apply_image_limits(w, h, aspect_ratio=chosen_ratio, rule=rule)
 
 
 # ---------------------------------------------------------------------------

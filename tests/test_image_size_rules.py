@@ -34,15 +34,27 @@ class TestImageSizeRules(unittest.TestCase):
         )
         self.assertEqual((w, h), (1213, 866))
 
-    def test_seedream_clamped(self) -> None:
-        # seedream has no preferred_size mapping; we should clamp by max_long_side.
-        w, h = _resolve_image_size(
-            model_id="seedream-4-5-251128",
-            aspect_ratio="1:1",
-            resolution="1k",
-        )
-        self.assertEqual((w, h), (2048, 2048))
-        self.assertLessEqual(max(w, h), 2048)
+    def test_seedream_4_5_uses_min_pixel_floor(self) -> None:
+        from fotor_sdk import tasks
+
+        model_id = "seedream-4-5-251128"
+        original = tasks.MODEL_IMAGE_SIZE_RULES[model_id]
+        tasks.MODEL_IMAGE_SIZE_RULES[model_id] = {
+            **original,
+            "resolution_default": "1k",
+            "resolution_supports": ["1k"],
+        }
+        try:
+            w, h = _resolve_image_size(
+                model_id=model_id,
+                aspect_ratio="16:9",
+                resolution="1k",
+            )
+        finally:
+            tasks.MODEL_IMAGE_SIZE_RULES[model_id] = original
+
+        self.assertEqual((w, h), (2560, 1440))
+        self.assertGreaterEqual(w * h, 3_686_400)
 
     def test_gemini_flash_image_default_1k_1_1(self) -> None:
         w, h = _resolve_image_size(
@@ -75,14 +87,46 @@ class TestImageSizeRules(unittest.TestCase):
         )
         self.assertEqual((w, h), (1568, 672))
 
-    def test_seedream_resolution_4k_clamped_long_side(self) -> None:
+    def test_seedream_4_0_4k_allows_configured_max_pixels(self) -> None:
+        w, h = _resolve_image_size(
+            model_id="seedream-4-0-250828",
+            aspect_ratio="1:1",
+            resolution="4k",
+        )
+        self.assertEqual((w, h), (4096, 4096))
+        self.assertLessEqual(w * h, 16_777_216)
+
+    def test_seedream_4_5_uses_pixel_range_without_long_side_clamp(self) -> None:
         w, h = _resolve_image_size(
             model_id="seedream-4-5-251128",
             aspect_ratio="16:9",
             resolution="4k",
         )
-        self.assertLessEqual(max(w, h), 2048)
-        self.assertEqual((w, h), (2048, 1152))
+        self.assertEqual((w, h), (5461, 3072))
+        self.assertGreater(max(w, h), 4096)
+        self.assertLessEqual(w * h, 16_777_216)
+
+    def test_seedream_5_lite_uses_min_pixel_floor(self) -> None:
+        from fotor_sdk import tasks
+
+        model_id = "seedream-5-0-260128"
+        original = tasks.MODEL_IMAGE_SIZE_RULES[model_id]
+        tasks.MODEL_IMAGE_SIZE_RULES[model_id] = {
+            **original,
+            "resolution_default": "1k",
+            "resolution_supports": ["1k"],
+        }
+        try:
+            w, h = _resolve_image_size(
+                model_id=model_id,
+                aspect_ratio="16:9",
+                resolution="1k",
+            )
+        finally:
+            tasks.MODEL_IMAGE_SIZE_RULES[model_id] = original
+
+        self.assertEqual((w, h), (2560, 1440))
+        self.assertGreaterEqual(w * h, 3_686_400)
 
     def test_resolution_above_model_support_downgrades_to_highest_supported(self) -> None:
         w, h = _resolve_image_size(
