@@ -1,0 +1,24 @@
+[
+  {
+    "task_type": "text2image",
+    "tag": "test-image-cat",
+    "params": {
+      "prompt": "A cute orange cat sitting on a wooden table, studio lighting",
+      "model_id": "gpt-image-2",
+      "aspect_ratio": "1:1",
+      "resolution": "2k"
+    }
+  },
+  {
+    "task_type": "text2video",
+    "tag": "test-video-sunset",
+    "params": {
+      "prompt": "A cinematic sunset over a calm ocean, slow camera movement",
+      "model_id": "kling-v3",
+      "duration": 5,
+      "resolution": "1080p",
+      "aspect_ratio": "16:9",
+      "audio_enable": false
+    }
+  }
+]

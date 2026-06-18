@@ -6,10 +6,12 @@ import json
 import os
 import sys
 import time
+from pathlib import Path
 from typing import Any, Callable, Sequence, TextIO
 
 from .client import FotorAPIError, FotorClient
-from .models import TaskResult
+from .models import TaskResult, TaskSpec, TaskStatus
+from .runner import TaskRunner
 from .tasks import (
     background_remove,
     image2image,
@@ -112,6 +114,12 @@ def _result_to_dict(result: TaskResult) -> dict[str, Any]:
     }
 
 
+def _batch_result_to_dict(result: TaskResult) -> dict[str, Any]:
+    data = _result_to_dict(result)
+    data["tag"] = result.metadata.get("tag", "")
+    return data
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="fotor", description="Run Fotor AI tasks")
     parser.add_argument(
@@ -122,6 +130,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     subparsers.add_parser("credits", help="Show account credits")
 
+    batch = subparsers.add_parser("batch", help="Run tasks from a JSON file concurrently")
+    batch.add_argument("--file", required=True, help="JSON file containing an array of task specs")
+    batch.add_argument("--concurrency", type=int, default=5, help="maximum concurrent tasks")
+
     text2image = subparsers.add_parser("text2image", help="Generate an image from text")
     text2image.add_argument("--prompt", required=True)
     text2image.add_argument("--model", default=DEFAULT_IMAGE_MODEL)
@@ -129,7 +141,7 @@ def build_parser() -> argparse.ArgumentParser:
     text2image.add_argument("--resolution", default=DEFAULT_IMAGE_RESOLUTION)
 
     image2image_parser = subparsers.add_parser("image2image", help="Edit an image")
-    image2image_parser.add_argument("--image", action="append", required=True)
+    image2image_parser.add_argument("--image", action="extend", nargs="+", required=True)
     image2image_parser.add_argument("--prompt", required=True)
     image2image_parser.add_argument("--model", default=DEFAULT_IMAGE_MODEL)
     image2image_parser.add_argument("--aspect-ratio", default=DEFAULT_IMAGE_ASPECT_RATIO)
@@ -155,7 +167,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_video_common_args(start_end)
 
     multi = subparsers.add_parser("multi-image-video", help="Generate a video from multiple images")
-    multi.add_argument("--image", action="append", required=True)
+    multi.add_argument("--image", action="extend", nargs="+", required=True)
     _add_video_common_args(multi)
 
     return parser
@@ -213,6 +225,61 @@ def _resolve_image(value: str, *, task_type: str, api_key: str, endpoint: str) -
     elapsed = round(time.monotonic() - start, 2)
     _log(f"uploaded '{value}' -> {result.file_url} ({elapsed}s)")
     return result.file_url
+
+
+def _load_batch_specs(file_path: str) -> list[TaskSpec]:
+    payload = json.loads(Path(file_path).expanduser().read_text(encoding="utf-8"))
+    items = payload.get("tasks") if isinstance(payload, dict) else payload
+    if not isinstance(items, list):
+        raise ValueError("batch file must contain a JSON array or an object with a 'tasks' array")
+
+    specs: list[TaskSpec] = []
+    for index, item in enumerate(items, start=1):
+        if not isinstance(item, dict):
+            raise ValueError(f"batch task #{index} must be an object")
+        task_type = str(item.get("task_type", "")).strip()
+        if not task_type:
+            raise ValueError(f"batch task #{index} missing task_type")
+        params = item.get("params", {})
+        if not isinstance(params, dict):
+            raise ValueError(f"batch task #{index} params must be an object")
+        specs.append(TaskSpec(task_type=task_type, params=params, tag=str(item.get("tag", ""))))
+    return specs
+
+
+async def _run_batch(args: argparse.Namespace, *, api_key: str, endpoint: str) -> dict[str, Any]:
+    if args.concurrency <= 0:
+        raise ValueError("--concurrency must be greater than 0")
+
+    specs = _load_batch_specs(args.file)
+    _log(f"running batch tasks={len(specs)} concurrency={args.concurrency}")
+
+    def on_progress(**info: Any) -> None:
+        latest = info.get("latest")
+        latest_status = latest.status.name if isinstance(latest, TaskResult) else "UNKNOWN"
+        latest_tag = latest.metadata.get("tag", "") if isinstance(latest, TaskResult) else ""
+        _log(
+            f"batch progress completed={info.get('completed')}/{info.get('total')} "
+            f"failed={info.get('failed')} in_progress={info.get('in_progress')} "
+            f"latest={latest_tag or latest_status}"
+        )
+
+    client = FotorClient(api_key=api_key, endpoint=endpoint)
+    runner = TaskRunner(client, max_concurrent=args.concurrency)
+    results = await runner.run(
+        specs,
+        on_progress=on_progress,
+        on_task_poll=_make_poll_logger("batch"),
+    )
+    completed = sum(1 for result in results if result.status == TaskStatus.COMPLETED)
+    return {
+        "summary": {
+            "total": len(results),
+            "completed": completed,
+            "failed": len(results) - completed,
+        },
+        "results": [_batch_result_to_dict(result) for result in results],
+    }
 
 
 async def _run(args: argparse.Namespace, *, api_key: str, endpoint: str) -> TaskResult:
@@ -365,6 +432,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "credits":
             _log("fetching credits ...")
             _print_json(_get_credits(api_key=api_key, endpoint=endpoint), sys.stdout)
+            return 0
+        if args.command == "batch":
+            _print_json(asyncio.run(_run_batch(args, api_key=api_key, endpoint=endpoint)), sys.stdout)
             return 0
         result = asyncio.run(_run(args, api_key=api_key, endpoint=endpoint))
     except Exception as exc:  # noqa: BLE001
