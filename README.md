@@ -37,7 +37,7 @@ Generate images and videos:
 ```bash
 fotor credits
 fotor text2image --prompt "A diamond kitten on velvet, studio lighting"
-fotor image2image --image ./input.png --prompt "Turn this into an e-commerce product photo"
+fotor image2image --image ./ref-1.png ./ref-2.png --prompt "Turn these into an e-commerce product photo"
 fotor bg-remove --image ./product.jpg
 fotor upscale --image ./product.jpg --ratio 2
 fotor text2video --prompt "A cinematic sunset over the ocean"
@@ -46,7 +46,59 @@ fotor image2video --image ./cover.png --prompt "Slow camera push-in"
 
 Image inputs may be local files or `http://` / `https://` URLs. Local files are
 uploaded through Fotor's signed upload flow before the task runs. CLI output is
-JSON containing task status and `result_url`.
+JSON containing task status and `result_url`. For multi-image commands, pass
+the images after a single `--image`, separated by spaces.
+
+For image-to-image generation with multiple reference images, use `image2image`
+and put all references after one `--image`:
+
+```bash
+fotor image2image \
+  --image ./reference-1.png ./reference-2.jpg https://example.com/reference-3.png \
+  --prompt "Use these references to create a polished product photo" \
+  --model gpt-image-2 \
+  --aspect-ratio 1:1 \
+  --resolution 2k
+```
+
+The older repeated form is still accepted:
+
+```bash
+fotor image2image --image ./reference-1.png --image ./reference-2.jpg --prompt "Use both references"
+```
+
+Run multiple SDK task specs concurrently from a JSON file:
+
+```json
+[
+  {
+    "task_type": "text2image",
+    "tag": "cat",
+    "params": {
+      "prompt": "A diamond kitten on velvet, studio lighting",
+      "model_id": "gpt-image-2",
+      "aspect_ratio": "1:1",
+      "resolution": "2k"
+    }
+  },
+  {
+    "task_type": "text2video",
+    "tag": "sunset",
+    "params": {
+      "prompt": "A cinematic sunset over the ocean",
+      "model_id": "doubao-seedance-2-0-260128",
+      "duration": 5,
+      "resolution": "1080p",
+      "aspect_ratio": "16:9",
+      "audio_enable": false
+    }
+  }
+]
+```
+
+```bash
+fotor batch --file tasks.json --concurrency 5
+```
 
 ## Quick Start
 
